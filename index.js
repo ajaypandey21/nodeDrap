@@ -11,14 +11,20 @@ app.post("/signup", async (req, res) => {
   const { name, username, email, password } = req.body;
   try {
     console.log(req.body)
-    // const userData = new UserModel({ name, username, email, password });
-    // const savedUser = userData.save();
+    const userData = new UserModel({ name, username, email, password });
+    const savedUser = userData.save();
     res.status(201).json(userData);
   } catch (err) {
     console.error(err);
     res.status(500).send("Internal Server Error");
   }
 });
+
+app.get('/data',async(req,res)=>{
+  const userData = await UserModel.find()
+  res.json(userData)
+
+})
 
 // Start the server
 const PORT = process.env.PORT || 3001;

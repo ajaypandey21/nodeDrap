@@ -1,5 +1,5 @@
 import mongoose, {model,Schema} from "mongoose"
-mongoose.connect("mongodb://127.0.0.1:27017/user")
+mongoose.connect("mongodb+srv://Ajay:1234@cluster0.adga2kq.mongodb.net/?retryWrites=true&w=majority")
 .then(()=>{
     console.log("MongoDB is Connected")
 })
