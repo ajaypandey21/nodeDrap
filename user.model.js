@@ -1,5 +1,7 @@
 import mongoose, {model,Schema} from "mongoose"
-mongoose.connect("mongodb+srv://Ajay:1234@cluster0.adga2kq.mongodb.net/?retryWrites=true&w=majority")
+import dotenv from "dotenv"
+dotenv.config()
+mongoose.connect(process.env.MONGO_KEY)
 .then(()=>{
     console.log("MongoDB is Connected")
 })
