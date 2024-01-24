@@ -10,7 +10,7 @@ app.use(cors());
 app.post("/signup", async (req, res) => {
   const { name, username, email, password } = req.body;
   try {
-    console.log(req.body)
+    console.log(req.body);
     const userData = new UserModel({ name, username, email, password });
     const savedUser = userData.save();
     res.status(201).json(userData);
@@ -20,11 +20,21 @@ app.post("/signup", async (req, res) => {
   }
 });
 
-app.get('/data',async(req,res)=>{
-  const userData = await UserModel.find()
-  res.json(userData)
+app.get("/data", async (req, res) => {
+  const userData = await UserModel.find();
+  res.json(userData);
+});
+app.get("/user/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log("User ID:", id);
 
-})
+    const userData = await UserModel.findById(id);
+    res.status(201).json(userData);
+  } catch (err) {
+    console.log(err.message);
+  }
+});
 
 // Start the server
 const PORT = process.env.PORT || 3001;
