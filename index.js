@@ -10,7 +10,7 @@ app.use(cors());
 app.post("/signup", async (req, res) => {
   const { name, username, email, password } = req.body;
   try {
-    console.log(req.body);
+    
     const userData = new UserModel({ name, username, email, password });
     const savedUser = userData.save();
     res.status(201).json(userData);
@@ -35,7 +35,37 @@ app.get("/user/:id", async (req, res) => {
     console.log(err.message);
   }
 });
+app.put("/update/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updatedData = req.body; // Assuming your updated data is in the request body
 
+    // Use findByIdAndUpdate to find the document by id and update it
+    const upData = await UserModel.findByIdAndUpdate(id, updatedData, {
+      new: true, // Return the updated document
+      runValidators: true, // Run validators to ensure the updated data is valid
+    });
+
+    res.status(200).json(upData);
+
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error");
+  }
+});
+app.delete("/delete/:id",async(req,res)=>{
+  try{
+
+    const {id} = req.params
+    await UserModel.findByIdAndDelete(id)
+    res.status(201).json("Deleted");    
+
+  }catch(err){
+    console.log(err.message)
+    res.status(500).send("Server Error");
+
+  }
+})
 // Start the server
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
