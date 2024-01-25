@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 const app = express();
 import UserModel from "./user.model.js";
+import bcrypt from "bcrypt"
 
 // Import routes module
 app.use(express.json());
@@ -10,10 +11,16 @@ app.use(cors());
 app.post("/signup", async (req, res) => {
   const { name, username, email, password } = req.body;
   try {
-    
-    const userData = new UserModel({ name, username, email, password });
-    const savedUser = userData.save();
-    res.status(201).json(userData);
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // Create a new user with the hashed password
+    const userData = new UserModel({ name, username, email, password: hashedPassword });
+
+    // Save the user to the database
+    const savedUser = await userData.save();
+
+    res.status(201).json(savedUser);
   } catch (err) {
     console.error(err);
     res.status(500).send("Internal Server Error");
@@ -21,8 +28,13 @@ app.post("/signup", async (req, res) => {
 });
 
 app.get("/data", async (req, res) => {
-  const userData = await UserModel.find();
-  res.json(userData);
+  try {
+    const userData = await UserModel.find();
+    res.json(userData);
+  } catch (err) {
+    console.log(err.message);
+    res.status(500).send("Server errror");
+  }
 });
 app.get("/user/:id", async (req, res) => {
   try {
@@ -47,25 +59,21 @@ app.put("/update/:id", async (req, res) => {
     });
 
     res.status(200).json(upData);
-
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server Error");
   }
 });
-app.delete("/delete/:id",async(req,res)=>{
-  try{
-
-    const {id} = req.params
-    await UserModel.findByIdAndDelete(id)
-    res.status(201).json("Deleted");    
-
-  }catch(err){
-    console.log(err.message)
+app.delete("/delete/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await UserModel.findByIdAndDelete(id);
+    res.status(201).json("Deleted");
+  } catch (err) {
+    console.log(err.message);
     res.status(500).send("Server Error");
-
   }
-})
+});
 // Start the server
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
