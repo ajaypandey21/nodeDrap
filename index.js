@@ -1,12 +1,58 @@
 import express from "express";
 import cors from "cors";
-const app = express();
 import UserModel from "./user.model.js";
-import bcrypt from "bcrypt"
+import bcrypt from "bcrypt";
+import { createClient } from "redis";
 
-// Import routes module
+const app = express();
+
 app.use(express.json());
 app.use(cors());
+
+const client = createClient();
+
+client.connect().then(() => console.log('Connected to Redis')).catch(err => console.error('Redis connection error:', err));
+
+// Redis caching middleware
+const redisMiddleware = async (req, res, next) => {
+  try {
+    const { method, originalUrl } = req;
+    const key = `${method}:${originalUrl}`;
+
+    const cachedData = await client.get(key);
+    if (cachedData) {
+      res.json(JSON.parse(cachedData));
+      return;
+    }
+
+    // If not cached, proceed to the route handler
+    next();
+  } catch (error) {
+    console.error('Redis caching middleware error:', error);
+    next();
+  }
+};
+
+// Apply Redis caching middleware for the "/data" route
+app.use("/data", redisMiddleware);
+
+app.get("/data", async (req, res) => {
+  try {
+    // Fetch data from the database
+    const userData = await UserModel.find();
+
+    // Store fetched data in Redis cache with a dynamic key
+    const key = `${req.method}:${req.originalUrl}`;
+    await client.set(key, JSON.stringify(userData));
+    await client.expire(key, 60); // Set cache expiration to 60 seconds (adjust as needed)
+
+    res.json(userData);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server error");
+  }
+});
+
 // Use routes module
 app.post("/signup", async (req, res) => {
   const { name, username, email, password } = req.body;
@@ -27,15 +73,9 @@ app.post("/signup", async (req, res) => {
   }
 });
 
-app.get("/data", async (req, res) => {
-  try {
-    const userData = await UserModel.find();
-    res.json(userData);
-  } catch (err) {
-    console.log(err.message);
-    res.status(500).send("Server errror");
-  }
-});
+// Apply Redis caching middleware for the "/user/:id" route
+app.use("/user/:id", redisMiddleware);
+
 app.get("/user/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -44,19 +84,24 @@ app.get("/user/:id", async (req, res) => {
     const userData = await UserModel.findById(id);
     res.status(201).json(userData);
   } catch (err) {
-    console.log(err.message);
+    console.error(err.message);
+    res.status(500).send("Server Error");
   }
 });
+
 app.put("/update/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const updatedData = req.body; // Assuming your updated data is in the request body
+    const updatedData = req.body;
 
-    // Use findByIdAndUpdate to find the document by id and update it
     const upData = await UserModel.findByIdAndUpdate(id, updatedData, {
-      new: true, // Return the updated document
-      runValidators: true, // Run validators to ensure the updated data is valid
+      new: true,
+      runValidators: true,
     });
+
+    // Invalidate cache for the updated user
+    const key = `GET:/user/${id}`;
+    await client.del(key);
 
     res.status(200).json(upData);
   } catch (err) {
@@ -64,18 +109,36 @@ app.put("/update/:id", async (req, res) => {
     res.status(500).send("Server Error");
   }
 });
+
 app.delete("/delete/:id", async (req, res) => {
   try {
     const { id } = req.params;
+
     await UserModel.findByIdAndDelete(id);
+
+    // Invalidate cache for the deleted user
+    const key = `GET:/user/${id}`;
+    await client.del(key);
+
     res.status(201).json("Deleted");
   } catch (err) {
-    console.log(err.message);
+    console.error(err.message);
     res.status(500).send("Server Error");
   }
 });
-// Start the server
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
+
+
+// app.get("/data", async (req, res) => {
+//   try {
+//     const userData = await UserModel.find();
+//     res.json(userData);
+//   } catch (err) {
+//     console.log(err.message);
+//     res.status(500).send("Server errror");
+//   }
+// });
