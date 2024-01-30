@@ -3,15 +3,58 @@ import cors from "cors";
 import UserModel from "./user.model.js";
 import bcrypt from "bcrypt";
 import { createClient } from "redis";
+import Project from "./project.model.js";
 
 const app = express();
 
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:3000',
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  credentials: true,
+}));
+
+// Enable preflight requests for all routes
+app.options('*', cors());
 
 const client = createClient();
 
-client.connect().then(() => console.log('Connected to Redis')).catch(err => console.error('Redis connection error:', err));
+
+client
+  .connect()
+  .then(() => console.log("Connected to Redis"))
+  .catch((err) => console.error("Redis connection error:", err));
+
+  app.patch("/api/projects/:id", async (req, res) => {
+    const { id } = req.params;
+    const { data } = req.body;
+  
+    try {
+      const project = await Project.findOneAndUpdate(
+        { id },
+        { data },
+        { upsert: true, new: true }
+      );
+      res.json({ success: true, project });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ success: false, error: "Internal Server Error" });
+    }
+  });
+  
+  // Endpoint to load GrapesJS project data
+  app.get("/api/projects/:id", async (req, res) => {
+    const { id } = req.params;
+  
+    try {
+      const project = await Project.findOne({ id });
+      res.json({ success: true, project });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ success: false, error: "Internal Server Error" });
+    }
+  });
+  
 
 // Redis caching middleware
 const redisMiddleware = async (req, res, next) => {
@@ -28,7 +71,7 @@ const redisMiddleware = async (req, res, next) => {
     // If not cached, proceed to the route handler
     next();
   } catch (error) {
-    console.error('Redis caching middleware error:', error);
+    console.error("Redis caching middleware error:", error);
     next();
   }
 };
@@ -61,16 +104,21 @@ app.post("/signup", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     // Create a new user with the hashed password
-    const userData = new UserModel({ name, username, email, password: hashedPassword });
+    const userData = new UserModel({
+      name,
+      username,
+      email,
+      password: hashedPassword,
+    });
 
     // Save the user to the database
     const savedUser = await userData.save();
-    
+
     res.status(201).json(savedUser);
   } catch (err) {
     console.error(err);
     res.status(500).send("Internal Server Error");
-  } 
+  }
 });
 
 // Apply Redis caching middleware for the "/user/:id" route
@@ -109,6 +157,8 @@ app.put("/update/:id", async (req, res) => {
     res.status(500).send("Server Error");
   }
 });
+// Endpoint to save GrapesJS project data
+
 
 app.delete("/delete/:id", async (req, res) => {
   try {
@@ -133,12 +183,3 @@ app.listen(PORT, () => {
 });
 
 
-// app.get("/data", async (req, res) => {
-//   try {
-//     const userData = await UserModel.find();
-//     res.json(userData);
-//   } catch (err) {
-//     console.log(err.message);
-//     res.status(500).send("Server errror");
-//   }
-// });
