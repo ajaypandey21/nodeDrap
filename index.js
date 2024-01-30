@@ -65,12 +65,12 @@ app.post("/signup", async (req, res) => {
 
     // Save the user to the database
     const savedUser = await userData.save();
-
+    
     res.status(201).json(savedUser);
   } catch (err) {
     console.error(err);
     res.status(500).send("Internal Server Error");
-  }
+  } 
 });
 
 // Apply Redis caching middleware for the "/user/:id" route
